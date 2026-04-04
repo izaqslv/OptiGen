@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from api_layer.routes import health, profiles, metadata, auth_routes
 from data.database import engine
-from data.models import Base
+from data.models import Base, User
 from api_layer.routes import users
 
 
