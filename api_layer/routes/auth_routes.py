@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from data.models import User
@@ -33,6 +33,25 @@ def authenticate_user(username: str, password: str, db: Session):
 def login(data: LoginRequest, db: Session = Depends(get_db)):
 
     user = authenticate_user(data.username, data.password, db)
+
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token({"sub": user.username})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer"
+    }
+
+
+
+
+## Add em 04/04/2026 para corrigir erro de login no Swagger
+@router.post("/login-swagger")
+def login_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+
+    user = authenticate_user(form_data.username, form_data.password, db)
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
