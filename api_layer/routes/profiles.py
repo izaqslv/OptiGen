@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends, Path
 import datetime
 import os
 import io
@@ -15,12 +15,14 @@ from business_layer.sedimentation.plotter import (
     generate_profile_plot_from_dataset,
     format_metadata_text
 )
-from fastapi import Depends, Path
+
 from api_layer.security.dependencies import get_current_user
+from pydantic import BaseModel
+from business_layer.sedimentation.model_inference import predict_concentration, predict_curve, compare_with_experimental
+from business_layer.sedimentation.plotter import generate_curve_plot, generate_comparison_plot
 
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
-
 
 #-----------------------------------------------------------------------------------------------------------------------
 @router.get(
@@ -206,15 +208,6 @@ def plot_all_profiles(fluid_id: int= Path(..., description="Fluid ID (5–10)", 
                 # label=f"{h} cm"
             )
 
-            # 🔹 PONTOS (experimental fake)
-            # plt.scatter(
-            #     time[::5],
-            #     conc[::5],
-            #     color=colors[i],
-            #     s=25,
-            #     alpha=0.8,
-            #     label=f"{h} cm (Exp)" if i < 6 else None
-            # )
             plt.plot(
                 time,
                 conc,
@@ -269,9 +262,132 @@ def plot_all_profiles(fluid_id: int= Path(..., description="Fluid ID (5–10)", 
     except Exception as e:
         return {"error": str(e)}
 
-#-----------------------------------------------------------------------------------------------------------------------
-# Add o endpoint predict para os modelos de IA (31/03/2026).
-@router.get("/predict", tags=["profiles"])
-def predict(user: str = Depends(get_current_user)):
-    return {"message": "coming soon"}
 
+
+#=======================================================================================================================
+# Add TRÊS endpoints predict para os modelos de IA (05/04/2026).
+#=======================================================================================================================
+
+## Gerar um ponto de predição:
+class PredictRequest(BaseModel):
+    tempo: float
+    altura: float
+    ROA: float
+    dens_susp: float
+    dens_solids: float
+    teor_solids: float
+    dp_medio: float
+    m: float
+    n: float
+
+@router.post("/predict-ponto")
+def predict(data: PredictRequest):
+    result = predict_concentration(data.dict())
+    return {"concentracao": result}
+
+
+# Gerar curvas de predição:
+class PredictCurveRequest(BaseModel):
+    altura: float
+    ROA: float
+    dens_susp: float
+    dens_solids: float
+    teor_solids: float
+    dp_medio: float
+    m: float
+    n: float
+    tempos: list[float]
+
+@router.post("/predict-curve")
+def predict_curve_endpoint(data: PredictCurveRequest):
+
+    base_data = data.dict()
+    tempos = base_data.pop("tempos")
+
+    result = predict_curve(base_data, tempos)
+
+    return result
+
+
+## Gráfico: plot curvas de predição em base64
+@router.post("/predict-curve-plot")
+def predict_curve_plot_endpoint(data: PredictCurveRequest):
+
+    base_data = data.dict()
+    tempos = base_data.pop("tempos")
+
+    result = predict_curve(base_data, tempos)
+
+    #  WARNING DE EXTRAPOLAÇÃO
+    warning = None
+    if max(tempos) > 50:
+        warning = "Possível extrapolação do modelo (fora do domínio experimental)"
+
+    image = generate_curve_plot(
+        result["tempo"],
+        result["concentracao"]
+    )
+
+    return {
+        "tempo": result["tempo"],
+        "concentracao": result["concentracao"],
+        "plot": f"data:image/png;base64,{image}",
+        "warning": warning
+    }
+
+
+###### Comparação: RN vs Experimental (05/04/2026)
+# REQUEST MODEL:
+class CompareRequest(BaseModel):
+    altura: float
+    ROA: float
+    dens_susp: float
+    dens_solids: float
+    teor_solids: float
+    dp_medio: float
+    m: float
+    n: float
+    tempos: list[float]
+    concentracoes_exp: list[float]
+
+# endpoint
+@router.post("/compare-with-experimental")
+def compare_endpoint(data: CompareRequest):
+
+    if len(data.tempos) != len(data.concentracoes_exp):
+        raise HTTPException(status_code=400, detail="Tempos e dados experimentais devem ter o mesmo tamanho")
+
+    base_data = {
+        "altura": data.altura,
+        "ROA": data.ROA,
+        "dens_susp": data.dens_susp,
+        "dens_solids": data.dens_solids,
+        "teor_solids": data.teor_solids,
+        "dp_medio": data.dp_medio,
+        "m": data.m,
+        "n": data.n
+    }
+
+    result = compare_with_experimental(
+        base_data,
+        data.tempos,
+        data.concentracoes_exp
+    )
+
+    #  WARNING extrapolação
+    warning = None
+    if max(data.tempos) > 50:
+        warning = "Possível extrapolação (dados experimentais fora do domínio)"
+
+    #  gráfico
+    image = generate_comparison_plot(
+        result["tempo"],
+        result["predito"],
+        result["experimental"]
+    )
+
+    return {
+        **result,
+        "plot": f"data:image/png;base64,{image}",
+        "warning": warning
+    }

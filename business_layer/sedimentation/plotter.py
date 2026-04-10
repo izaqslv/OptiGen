@@ -12,7 +12,6 @@ que está alinhada com o uso em api_layer/main_bkp.py.
 import io
 import base64
 from typing import Tuple, Optional, Dict, Any
-
 import matplotlib.pyplot as plt
 
 #=======================================================================================================================
@@ -155,3 +154,66 @@ def generate_profile_plot_from_dataset(
     finally:
         plt.close("all")
 
+
+
+
+## Add geração de gráficos do predict (05/04/2026)  ====================================================================
+
+def generate_curve_plot(tempo, concentracao):
+    import matplotlib.pyplot as plt
+
+
+import io
+import base64
+
+
+def generate_curve_plot(tempo, concentracao):
+
+    plt.figure(figsize=(8, 5))
+
+    plt.plot(
+        tempo,
+        concentracao,
+        marker='o',
+        linewidth=2,
+        label="Modelo IA"
+    )
+
+    plt.xlabel("Tempo (dias)")
+    plt.ylabel("Concentração")
+    plt.title("Perfil de Sedimentação")
+
+    plt.grid(True, linestyle="--", alpha=0.6)
+    plt.legend()
+
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png")
+    plt.close()
+
+    buffer.seek(0)
+
+    image_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+
+    return image_base64
+
+
+## PLOT COMPARATIVO (RN vs EXPERIMENTAL): 05/04/2026
+def generate_comparison_plot(tempo, y_pred, y_exp):
+
+    plt.figure()
+
+    plt.plot(tempo, y_pred, label="Predito (IA)", marker='o')
+    plt.scatter(tempo, y_exp, label="Experimental", color='red')
+
+    plt.xlabel("Tempo")
+    plt.ylabel("Concentração")
+    plt.title("IA vs Experimental")
+    plt.legend()
+    plt.grid()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png")
+    plt.close()
+    buf.seek(0)
+
+    return base64.b64encode(buf.read()).decode("utf-8")

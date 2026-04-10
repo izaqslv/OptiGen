@@ -7,6 +7,7 @@ from data.database import engine
 from data.models import Base, User
 from api_layer.routes import users
 
+from api_layer.routes.analysis_routes import router as analysis_router
 
 app = FastAPI(
     title="OptiGen Intelligence Service",
@@ -22,4 +23,6 @@ app.include_router(auth_routes.router)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 Base.metadata.create_all(bind=engine)
 app.include_router(users.router, prefix="/users", tags=["users"])
+app.include_router(analysis_router)
+
 
