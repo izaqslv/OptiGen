@@ -37,6 +37,6 @@ app.include_router(profiles_routes.router)
 app.include_router(metadata_routes.router)
 app.include_router(auth_routes.router)
 app.include_router(users_routes.router, prefix="/users", tags=["users"])
-# app.include_router(V3_router)
-# app.include_router(simulate_V3_routes)
+app.include_router(V3_router)
+app.include_router(simulate_V3_routes)
 
