@@ -1,7 +1,10 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, String, DateTime
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from data.database import Base
+from datetime import datetime
+
+created_at = Column(DateTime, default=datetime.utcnow)
 
 class User(Base):
     __tablename__ = "users"
