@@ -40,14 +40,14 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": user.username})
+    # token = create_access_token({"sub": user.username})
+    token = create_access_token({"sub": str(user.id)})
+
 
     return {
         "access_token": token,
         "token_type": "bearer"
     }
-
-
 
 
 ## Add em 04/04/2026 para corrigir erro de login no Swagger
@@ -59,7 +59,8 @@ def login_swagger(form_data: OAuth2PasswordRequestForm = Depends(), db: Session 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = create_access_token({"sub": user.username})
+    # token = create_access_token({"sub": user.username})
+    token = create_access_token({"sub": str(user.id)})
 
     return {
         "access_token": token,
